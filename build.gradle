@@ -1,0 +1,62 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.0'
+}
+
+group = 'com.mycompany.app'
+version = '1.0.0'
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+configurations {
+    codegen
+}
+
+dependencies {
+
+    // ✅ Import BOM for app
+    implementation platform('com.mycompany.framework:framework-bom:1.0.0')
+
+    // ✅ Starter (runtime)
+    implementation 'com.mycompany.framework:framework-starter'
+
+    // ✅ Import BOM for codegen ALSO (IMPORTANT)
+    codegen platform('com.mycompany.framework:framework-bom:1.0.0')
+
+    // ✅ Generator (build-time)
+    codegen 'com.mycompany.framework:framework-generator'
+    compileOnly 'org.projectlombok:lombok'
+    // ✅ FIX: apply BOM here also
+    annotationProcessor platform('com.mycompany.framework:framework-bom:1.0.0')
+
+    annotationProcessor 'org.projectlombok:lombok'
+    implementation 'com.h2database:h2' // ✅ Add this so H2 jar is available at runtime
+
+}
+
+tasks.register('generateCode', JavaExec) {
+
+    group = "codegen"
+    description = "Generate code from XML"
+
+    mainClass = 'com.mycompany.framework.generator.CodeGenMain'
+    classpath = configurations.codegen
+
+    args = ['src/main/resources/entities']
+
+    // optional debug
+    // jvmArgs = ['-Xdebug', '-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005']
+}
+
+compileJava.dependsOn generateCode
+
+sourceSets {
+    main {
+        java {
+            srcDirs += 'build/generated-src'
+        }
+    }
+}
