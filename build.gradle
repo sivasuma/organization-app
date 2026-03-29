@@ -1,8 +1,30 @@
+// build.gradle (full working version)
+buildscript {
+    repositories {
+        mavenLocal()   // fetch your locally published plugin
+        mavenCentral()
+    }
+
+
+    dependencies {
+        classpath "com.mycompany:mycompany-plugins-checksum:1.0.0"
+    }
+}
 plugins {
     id 'java'
     id 'org.springframework.boot' version '3.2.0'
 }
 
+// ----------------------------
+// Plugin (locally published)
+// ----------------------------
+
+
+apply plugin: 'com.mycompany.checksum' // your plugin task now available
+
+// ----------------------------
+// Project info
+// ----------------------------
 group = 'com.mycompany.app'
 version = '1.0.0'
 
@@ -11,34 +33,40 @@ repositories {
     mavenCentral()
 }
 
+// ----------------------------
+// Configurations
+// ----------------------------
 configurations {
     codegen
 }
 
+// ----------------------------
+// Dependencies
+// ----------------------------
 dependencies {
-
-    // ✅ Import BOM for app
+    // ✅ Import BOM for app runtime
     implementation platform('com.mycompany.framework:framework-bom:1.0.0')
 
-    // ✅ Starter (runtime)
+    // ✅ Starter for runtime
     implementation 'com.mycompany.framework:framework-starter'
 
-    // ✅ Import BOM for codegen ALSO (IMPORTANT)
+    // ✅ Import BOM for codegen (build-time generator)
     codegen platform('com.mycompany.framework:framework-bom:1.0.0')
-
-    // ✅ Generator (build-time)
     codegen 'com.mycompany.framework:framework-generator'
+
+    // Lombok for compile-time
     compileOnly 'org.projectlombok:lombok'
-    // ✅ FIX: apply BOM here also
     annotationProcessor platform('com.mycompany.framework:framework-bom:1.0.0')
-
     annotationProcessor 'org.projectlombok:lombok'
-    implementation 'com.h2database:h2' // ✅ Add this so H2 jar is available at runtime
 
+    // H2 database at runtime
+    implementation 'com.h2database:h2'
 }
 
+// ----------------------------
+// Code generation task
+// ----------------------------
 tasks.register('generateCode', JavaExec) {
-
     group = "codegen"
     description = "Generate code from XML"
 
@@ -47,16 +75,28 @@ tasks.register('generateCode', JavaExec) {
 
     args = ['src/main/resources/entities']
 
-    // optional debug
+    // Optional: enable JVM debug
     // jvmArgs = ['-Xdebug', '-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005']
 }
 
-compileJava.dependsOn generateCode
+// Ensure code is generated before compiling
+compileJava.dependsOn(generateCode)
 
+// ----------------------------
+// Include generated sources
+// ----------------------------
 sourceSets {
     main {
         java {
             srcDirs += 'build/generated-src'
         }
     }
+}
+
+tasks.named("generateChecksum") {
+    dependsOn("bootJar")
+}
+
+tasks.named("build") {
+    dependsOn("generateChecksum")
 }
